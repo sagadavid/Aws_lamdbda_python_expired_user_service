@@ -9,16 +9,21 @@ database='moso'
 
 
 def main():
-    db=mysql.connect(host=host, user=user, password=password, database=database)
-    cur=db.cursor(prepared=True)
+    conn=mysql.connect(host=host, user=user, password=password, database=database)
+    cursor=conn.cursor(prepared=True)
 
-    cur.execute("select full_name, uuid, email, last_login from users where last_login is not null")
+    reading = cursor.execute("select full_name, uuid, email, last_login from users where last_login is not null")
 
-    for execution in cur:
-        print(execution)
+    for execution in cursor:
+        # returns tuple
+        print(f'execution {type(execution)} {execution}')
 
-    cur.close()
-    db.close()
+    print(type(reading))
+    # <class 'NoneType'> The type of reading here is a database query.
+
+
+    cursor.close()
+    conn.close()
 
 
 if __name__=="__main__":
