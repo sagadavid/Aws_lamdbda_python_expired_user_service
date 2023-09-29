@@ -1,0 +1,57 @@
+Is 302, Moso As,
+Task : Service Design
+
+Task definition
+Moso is using AWS. Create a lambda code which
+•	Checks database for user who didn’t login for 1 month
+•	Warn them with their registered emails that if they do not login within a week their user profiles would be deleted.
+•	And do so, delete user and save deleted user profile logs.
+•	User should be informed on deletion
+
+Steps-Subs
+
+1-	Create WarnedUser with warningDate
+a.	Id:PK : auto-increment
+b.	UUID : VarChar
+c.	Warning_Date : DateTime
+d.	isWarned: Boolean
+e.	isDeleted: Boolean
+f.	Deletion_Date : DateTime
+g.	Last_login
+h.	Email
+
+2-	Select expiring users
+a.	Needed Columns from master table:
+i.	Uuid : VarChar
+ii.	Email : VarChar
+iii.	Last_login : DateTime
+b.	Meet condition : Last_login <= DATE_SUB(NOW(), INTERVAL 11 Months)
+
+3-	Get data from master table
+a.	Response = list of user objects
+
+4-For each expiry in expiry_user_objects;
+
+Check if
+expiry exists in the warned_users table in the moso database,
+And isMailed true a week ago,
+then,
+Delete user from the users table in the moso database,
+And,
+Set isDeleted true in the warned_users table,
+
+#isMailed:false|empty, then,
+Send an email to the user,
+use the registered mail in the warned_users table,
+and say that “your moso account is passive for a time please take action an log into your account in a week. Otherwise your account will be deleted permanently”,
+And,
+set isMailed to true,
+And,
+register the mail sending date to the mail_date column I	in the warned_users table in the moso database,
+
+On the other hand, expiry is mailed but it was less then a week ago,
+do nothing, just skip,
+
+If expiry does not exist in the warned_users table,
+Save non existence element to warned_users table as a new row
+And, Then do as in ‘If #isMailed:false|empty’.
