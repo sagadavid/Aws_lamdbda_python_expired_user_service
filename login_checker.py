@@ -218,7 +218,7 @@ def main():
         print(f'results: {type(_results)}, _objects: {type(_objects)}')
 
 
-# TODO
+# HUSK :
 # def match(user_obj, moso_con): fix connections in the main
 # oppfolging skjer i main, arbeid er i funksjonene
 # bruk simplified listing
