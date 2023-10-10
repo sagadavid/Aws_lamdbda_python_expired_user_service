@@ -1,11 +1,25 @@
 import pymysql
 from datetime import datetime, timedelta, date
 
-# Replace these values with your MySQL server configuration
-host = "localhost"
-user = "root"
-password = "pass0rd."
-database = "moso"
+# # Replace these values with your MySQL server configuration
+# host = "localhost"
+# user = "root"
+# password = "pass0rd."
+# database = "moso"
+# port = 3306
+
+# connection to aws Servers and theirs databases...
+#                       !!!!!!! CALL HOST NAMES AND DATABASES RESPECTIVELY IN EACH FUNCTION !!!!!!
+host_passive = 'moso-praksis-passive-users-db.cna5r0k4nskc.eu-north-1.rds.amazonaws.com'
+host_source = 'moso-praksis-source-db.cna5r0k4nskc.eu-north-1.rds.amazonaws.com'
+
+database_passive = 'moso_passive_users_db'
+database_source = 'moso-aws-praksis'
+
+user = 'admin'
+password = 'moso123.'
+port = 3306
+
 
 global fetched_results
 
@@ -23,7 +37,7 @@ class ExpiringUser:
 def fetch():
     try:
         # Connect to the MySQL server
-        conn = pymysql.connect(host=host, user=user, password=password, database=database)
+        conn = pymysql.connect(host=host_source, user=user, password=password, database=database_source, port=port)
         cursor = conn.cursor()
 
         # Define the SQL query to select users with last_login older than 11 months
@@ -57,11 +71,11 @@ def convert(result):
 def check_uuid_in_table(expiry):
     try:
         # Connect to the MySQL server
-        conn = pymysql.connect(host=host, user=user, password=password, database=database)
+        conn = pymysql.connect(host=host_passive, user=user, password=password, database=database_passive, port=port)
         cursor = conn.cursor()
 
         # Check if the user exists in warned_users
-        check_query = "SELECT uuid from warned_users where uuid=%s"
+        check_query = "SELECT uuid from passive_users where uuid=%s"
         cursor.execute(check_query, expiry.uuid)
         uuid_in_table = cursor.fetchone()
 
@@ -79,7 +93,7 @@ def check_mail_date(matching_uuid):
     try:
         # Replace 'your_uuid_here' with the UUID you want to check
         # Connect to the MySQL server
-        conn = pymysql.connect(host=host, user=user, password=password, database=database)
+        conn = pymysql.connect(host=host_passive, user=user, password=password, database=database_passive, port=port)
         cursor = conn.cursor()
 
         # mail_date older than 7 or not
@@ -90,7 +104,7 @@ def check_mail_date(matching_uuid):
                THEN 'TRUE' 
                ELSE 'FALSE' 
                END AS is_mail_date_older_than_7_days
-               FROM warned_users
+               FROM passive_users
                WHERE uuid = %s;
                '''
 
@@ -111,12 +125,12 @@ def check_mail_date(matching_uuid):
 def insert_mail_mark_date(matched_object):
     try:
         # Connect to the MySQL server
-        conn = pymysql.connect(host=host, user=user, password=password, database=database)
+        conn = pymysql.connect(host=host_passive, user=user, password=password, database=database_passive, port=port)
         cursor = conn.cursor()
 
         # Expiry does not exist in warned_users, so save it as a new row
         insertion_query = '''
-        INSERT INTO warned_users 
+        INSERT INTO passive_users 
         (uuid, full_name, last_login, email ) 
         VALUES (%s,%s,%s,%s)
         '''
@@ -133,7 +147,7 @@ def insert_mail_mark_date(matched_object):
 
         # got_mark_and_date = mail_inserted
         mark_and_date_query = """
-            UPDATE warned_users
+            UPDATE passive_users
             SET isMailed = True, mail_date = NOW()
             WHERE uuid=%s;
             """
@@ -154,14 +168,14 @@ def delete_user_from_aws_and_warned(older_mail):
     uuid_to_delete = older_mail.uuid
 
     # Establish a connection to the MySQL server
-    connection = pymysql.connect(host=host, user=user, password=password, database=database)
+    connection = pymysql.connect(host=host_passive, user=user, password=password, database=database_passive, port=port)
 
     try:
         # Create a new cursor to interact with the database
         cursor = connection.cursor()
 
         # Define the SQL query to delete the row with the specified UUID
-        sql_query = f"DELETE FROM warned_users WHERE uuid = '{uuid_to_delete}'"
+        sql_query = f"DELETE FROM passive_users WHERE uuid = '{uuid_to_delete}'"
 
         # Execute the SQL query to delete the row
         cursor.execute(sql_query)
@@ -175,7 +189,7 @@ def delete_user_from_aws_and_warned(older_mail):
 
             # got_mark_and_date = mail_inserted
             mark_and_date_query = """
-                        UPDATE warned_users
+                        UPDATE passive_users
                         SET isDeleted = True, delete_date = NOW()
                         WHERE uuid=%s;
                         """
@@ -227,7 +241,7 @@ def main():
             # the user is syk-passive og mailed more than 7 days ago
             if seven_days_older:
                 # then delete user from both aws and warned table
-                # delete_user_from_aws_and_warned(expiry)
+                delete_user_from_aws_and_warned(expiry)
                 print('deleted.. but has an issue to calculate 7 days')
 
 
@@ -237,6 +251,7 @@ if __name__ == "__main__":
 # fix:
 # 7 days ?
 # needless connections
-# set date witout time?
+# set date without time?
 # mail sending on aws
 # delete user on aws
+# forbedring: oop based yapilabilir... klasslara donusturulebilir..
