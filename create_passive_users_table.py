@@ -23,7 +23,7 @@ def main():
 
     # Define the SQL query to create the table with boolean columns
     create_table_query = '''
-        CREATE TABLE IF NOT EXISTS passive_users (
+        CREATE TABLE IF NOT EXISTS passive_users_test (
             id INT AUTO_INCREMENT PRIMARY KEY,
             uuid VARCHAR(255),
             full_name VARCHAR(255),

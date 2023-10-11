@@ -235,7 +235,7 @@ def main():
 
             # check if it is mailed 7 days ago
             seven_days_older = check_mail_date(expiry.uuid)
-            print(f'mail_date older than 7 days?????? {seven_days_older}')
+            print(f' is mailing date older than 7 days {seven_days_older}')
 
             # we conclude that:
             # the user is syk-passive og mailed more than 7 days ago
