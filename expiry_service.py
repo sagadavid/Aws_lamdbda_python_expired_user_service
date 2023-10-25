@@ -37,7 +37,8 @@ class ExpiringUser:
 def fetch():
     try:
         # Connect to the MySQL server
-        conn = pymysql.connect(host=host_source, user=user, password=password, database=database_source, port=port)
+        conn = pymysql.connect(host=host_source, user=user,
+                               password=password, database=database_source, port=port)
         cursor = conn.cursor()
 
         # Define the SQL query to select users with last_login older than 11 months
@@ -71,7 +72,8 @@ def convert(result):
 def check_uuid_in_table(expiry):
     try:
         # Connect to the MySQL server
-        conn = pymysql.connect(host=host_passive, user=user, password=password, database=database_passive, port=port)
+        conn = pymysql.connect(host=host_passive, user=user,
+                               password=password, database=database_passive, port=port)
         cursor = conn.cursor()
 
         # Check if the user exists in warned_users
@@ -89,18 +91,82 @@ def check_uuid_in_table(expiry):
     return uuid_in_table is not None
 
 
+def insert_mail_mark_date(matched_object):
+    try:
+        # Connect to the MySQL server
+        conn = pymysql.connect(host=host_passive, user=user,
+                               password=password, database=database_passive, port=port)
+        cursor = conn.cursor()
+
+        # Expiry does not exist in warned_users, so save it as a new row
+        insertion_query = '''
+        INSERT INTO passive_users 
+        (uuid, full_name, last_login, email ) 
+        VALUES (%s,%s,%s,%s)
+        '''
+
+        inserted = cursor.execute(insertion_query,
+                                  (matched_object.uuid,
+                                   matched_object.full_name,
+                                   matched_object.last_login,
+                                   matched_object.email))
+        print(
+            f'*** {matched_object.full_name} inserted into passive users table \n')
+
+        # mail_the_inserted = inserted
+        # MAILING LOGIC HERE !!!!!
+        print(f'run mail service here ! ')
+        print(
+            f'*** {matched_object.full_name} will be mailed by {matched_object.email}\n')
+
+        # got_mark_and_date = mail_inserted
+        mail_and_date_query = """
+            UPDATE passive_users
+            SET isMailed = True, mail_date = NOW()
+            WHERE uuid=%s;
+            """
+
+        mail_and_date = cursor.execute(
+            mail_and_date_query, matched_object.uuid)
+
+        print(
+            f'*** user {matched_object.full_name} was mailed and dated {mail_and_date}\n')
+
+        get_mail_date = '''
+            SELECT mail_date FROM passive_users
+            WHERE uuid=%s;
+            '''
+
+        cursor.execute(get_mail_date, matched_object.uuid)
+        maildate = cursor.fetchone()
+
+        if maildate:
+            print(
+                f'### user {matched_object.full_name} was mailed at date: {maildate[0]}\n')
+        else:
+            print('no maildate available')
+
+        # Commit changes and close the database connection
+        conn.commit()
+        conn.close()
+
+    except pymysql.Error as err:
+        print(f'an error during cross_check: {err}')
+
+
 def check_mail_date(matching_uuid):
     try:
         # Replace 'your_uuid_here' with the UUID you want to check
         # Connect to the MySQL server
-        conn = pymysql.connect(host=host_passive, user=user, password=password, database=database_passive, port=port)
+        conn = pymysql.connect(host=host_passive, user=user,
+                               password=password, database=database_passive, port=port)
         cursor = conn.cursor()
 
         # mail_date older than 7 or not
         check_query = '''
                SELECT CASE 
                WHEN MAX(mail_date) 
-               <= DATE_ADD(CURDATE(), INTERVAL -7 DAY) 
+               < DATE_ADD(CURDATE(), INTERVAL -7 DAY) 
                THEN 'TRUE' 
                ELSE 'FALSE' 
                END AS is_mail_date_older_than_7_days
@@ -122,53 +188,13 @@ def check_mail_date(matching_uuid):
         print(f'an error during cross_check: {err}')
 
 
-def insert_mail_mark_date(matched_object):
-    try:
-        # Connect to the MySQL server
-        conn = pymysql.connect(host=host_passive, user=user, password=password, database=database_passive, port=port)
-        cursor = conn.cursor()
-
-        # Expiry does not exist in warned_users, so save it as a new row
-        insertion_query = '''
-        INSERT INTO passive_users 
-        (uuid, full_name, last_login, email ) 
-        VALUES (%s,%s,%s,%s)
-        '''
-
-        inserted = cursor.execute(insertion_query,
-                                  (matched_object.uuid,
-                                   matched_object.full_name,
-                                   matched_object.last_login,
-                                   matched_object.email))
-        print(f'inserted one: {inserted}')
-
-        # mail_the_inserted = inserted
-        print(f'will be mailed to: {inserted}')
-
-        # got_mark_and_date = mail_inserted
-        mark_and_date_query = """
-            UPDATE passive_users
-            SET isMailed = True, mail_date = NOW()
-            WHERE uuid=%s;
-            """
-
-        mark_and_date = cursor.execute(mark_and_date_query, matched_object.uuid)
-        print(f'marked and dated one: {mark_and_date}')
-
-        # Commit changes and close the database connection
-        conn.commit()
-        conn.close()
-
-    except pymysql.Error as err:
-        print(f'an error during cross_check: {err}')
-
-
 def delete_user_from_aws_and_warned(older_mail):
     # Replace 'your_uuid_here' with the UUID you want to use for deletion
     uuid_to_delete = older_mail.uuid
 
     # Establish a connection to the MySQL server
-    connection = pymysql.connect(host=host_passive, user=user, password=password, database=database_passive, port=port)
+    connection = pymysql.connect(
+        host=host_passive, user=user, password=password, database=database_passive, port=port)
 
     try:
         # Create a new cursor to interact with the database
@@ -185,64 +211,73 @@ def delete_user_from_aws_and_warned(older_mail):
 
         # Check if any rows were affected by the delete operation
         if cursor.rowcount > 0:
-            print(f"Row with UUID {uuid_to_delete} deleted successfully.")
+            print(
+                f"*** Row by UUID {uuid_to_delete} deleted successfully.\n")
 
             # got_mark_and_date = mail_inserted
-            mark_and_date_query = """
+            delete_and_date_query = """
                         UPDATE passive_users
                         SET isDeleted = True, delete_date = NOW()
                         WHERE uuid=%s;
                         """
 
             # set deletion date
-            cursor.execute(mark_and_date_query, uuid_to_delete)
-            print(f'delete_date is set to {date.today()}')
+            cursor.execute(delete_and_date_query, uuid_to_delete)
+            print(f'*** delete_date is set to {date.today()}\n')
 
         else:
-            print(f"No rows found with UUID {uuid_to_delete} for deletion.")
-        print('user should be deleted from aws servers as well !')
+            print(
+                f"*** No rows found with UUID {uuid_to_delete} to delete.\n")
+        print('*** user should be deleted from aws servers as well !***')
 
     finally:
         # Close the cursor and the database connection
         cursor.close()
         connection.close()
-    print(f'user {object} will be deleted form aws and local, later.. so pass now ')
+    print(
+        f'*** user {uuid_to_delete} will be deleted form aws and local, later.. so pass now \n')
 
 
 def main():
     # get tuple of last logger in 11 months
     fetch_results = fetch()
-    print(fetch_results)
+    print(f'*************** fetch resulst: \n {fetch_results}\n')
 
     # iterate results from db
     for result in fetch_results:
 
         # convert query results to objects
         expiry = convert(result)
-        print(f'{expiry.full_name} is an object now')
+        print(f'*** {expiry.full_name} is an object now\n')
 
         # check object uuid in warned table
         in_table_uuid = check_uuid_in_table(expiry)
-        print(f'{expiry.full_name} in_table_uuid? {in_table_uuid}')
+        print(
+            f'*** {expiry.full_name} exists in the passive users table? {in_table_uuid}\n')
 
         # if uuid is in warned_user table
         if in_table_uuid is False or None:
 
+            print(f'** {expiry.full_name} is not in the passive user table\n')
             # insert row, mail it, and note the mail date object to table
             insert_mail_mark_date(expiry)
 
         elif in_table_uuid is not False or None:
+            # elif in_table_uuid is True and not None:
 
             # check if it is mailed 7 days ago
             seven_days_older = check_mail_date(expiry.uuid)
-            print(f' is mailing date older than 7 days {seven_days_older}')
+            print(
+                f'*** is mailing date older than 7 days? {seven_days_older}\n')
 
             # we conclude that:
             # the user is syk-passive og mailed more than 7 days ago
             if seven_days_older:
-                # then delete user from both aws and warned table
-                delete_user_from_aws_and_warned(expiry)
-                print('deleted.. but has an issue to calculate 7 days')
+                # NOTE THAT then delete user from both aws and warned table
+
+                # delete_user_from_aws_and_warned(expiry)
+                print('*** deletion skipped for testing purposes \n')
+                # print(f'*** {expiry.full_name} is deleted from where? \n')
 
 
 if __name__ == "__main__":

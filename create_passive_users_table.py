@@ -1,5 +1,6 @@
 import pymysql
 
+
 def main():
     # # Connect to your MySQL database
     # conn = pymysql.connect(
@@ -23,7 +24,7 @@ def main():
 
     # Define the SQL query to create the table with boolean columns
     create_table_query = '''
-        CREATE TABLE IF NOT EXISTS passive_users_test (
+        CREATE TABLE IF NOT EXISTS passive_users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             uuid VARCHAR(255),
             full_name VARCHAR(255),
@@ -44,5 +45,5 @@ def main():
     conn.close()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
