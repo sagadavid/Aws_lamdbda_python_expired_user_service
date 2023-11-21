@@ -16,8 +16,8 @@ host_source = 'moso-praksis-source-db.cna5r0k4nskc.eu-north-1.rds.amazonaws.com'
 database_passive = 'moso_passive_users_db'
 database_source = 'moso-aws-praksis'
 
-user = 'admin'
-password = 'moso123.'
+user = '***'
+password = '***'
 port = 3306
 
 
