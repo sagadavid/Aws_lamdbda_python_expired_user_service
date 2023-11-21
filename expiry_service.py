@@ -164,11 +164,11 @@ def check_mail_date(matching_uuid):
 
         # mail_date older than 7 or not
         check_query = '''
-               SELECT CASE 
-               WHEN MAX(mail_date) 
-               < DATE_ADD(CURDATE(), INTERVAL -7 DAY) 
-               THEN 'TRUE' 
-               ELSE 'FALSE' 
+               SELECT 
+               CASE 
+               WHEN mail_date < DATE_SUB(NOW(), INTERVAL 7 DAY) 
+               THEN 'TRUE'
+               ELSE 'FALSE'
                END AS is_mail_date_older_than_7_days
                FROM passive_users
                WHERE uuid = %s;
@@ -177,15 +177,22 @@ def check_mail_date(matching_uuid):
         cursor.execute(check_query, matching_uuid)
         mail_date_older = cursor.fetchone()
 
-        # Close the database connection
-        conn.close()
-
+        print(f'*** mail date older ???  {type(mail_date_older[0])}')
         # Return True if the mailing date is older than 7 days,
         # False otherwise
-        return mail_date_older is not None
+        result = mail_date_older[0]
+        if result == 'TRUE':
+            return True
+        return False
+
+        # return mail_date_older[0] is not None
 
     except pymysql.Error as err:
         print(f'an error during cross_check: {err}')
+
+ # Close the database connection
+        cursor.close()
+        conn.close()
 
 
 def delete_user_from_aws_and_warned(older_mail):
@@ -267,14 +274,14 @@ def main():
 
             # check if it is mailed 7 days ago
             seven_days_older = check_mail_date(expiry.uuid)
-            print(
-                f'*** is mailing date older than 7 days? {seven_days_older}\n')
+            # print(f'seven days results: {seven_days_older}')
 
             # we conclude that:
             # the user is syk-passive og mailed more than 7 days ago
-            if seven_days_older:
+            if seven_days_older is True:
                 # NOTE THAT then delete user from both aws and warned table
-
+                print(
+                    f'*** is mailing date older than 7 days? {seven_days_older}\n')
                 # delete_user_from_aws_and_warned(expiry)
                 print('*** deletion skipped for testing purposes \n')
                 # print(f'*** {expiry.full_name} is deleted from where? \n')
